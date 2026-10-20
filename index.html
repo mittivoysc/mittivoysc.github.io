@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0f16">
+<title>MittivoyScreen — показать экран</title>
+<meta name="description" content="Покажите экран ноутбука на доске MittivoyScreen: введите код с доски.">
+<link rel="icon" href="logo.svg">
+<style>
+  :root { --bg: #f3f4f8; --card: #fff; --text: #12161d; --muted: #687385; --line: #e1e4ea; --field: #f6f7fa;
+    --a1: #7B61FF; --a2: #00D4B4; --err: #d63c3c; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #070a10; --card: #11151d; --text: #eef2f7; --muted: #8e99aa; --line: #232a36; --field: #0b0f16; }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; background: var(--bg); color: var(--text); display: grid; place-items: center; padding: 16px;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; position: relative; overflow-x: hidden; }
+  body::before { content: ""; position: fixed; width: 70vmax; height: 70vmax; left: -30vmax; top: -40vmax; border-radius: 50%;
+    background: radial-gradient(circle, rgba(123,97,255,.22), transparent 65%); pointer-events: none; }
+  body::after { content: ""; position: fixed; width: 70vmax; height: 70vmax; right: -35vmax; bottom: -45vmax; border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,212,180,.18), transparent 65%); pointer-events: none; }
+  .card { position: relative; z-index: 1; width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 22px; padding: 26px 26px 22px; box-shadow: 0 20px 60px rgba(10,15,30,.12); }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 17px; }
+  .brand img { width: 30px; height: 30px; }
+  .brand b { background: linear-gradient(90deg, var(--a1), var(--a2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .langs { display: flex; gap: 2px; background: var(--field); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+  .langs button { border: 0; background: none; color: var(--muted); font: inherit; font-size: 12px; font-weight: 650; padding: 5px 8px; border-radius: 7px; cursor: pointer; }
+  .langs button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 6px; }
+  .sub { color: var(--muted); font-size: 15px; margin-bottom: 22px; line-height: 1.45; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+  input[type=text] { width: 100%; padding: 12px 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--field);
+    color: var(--text); font: inherit; font-size: 16px; margin-bottom: 16px; outline: none; transition: border-color .15s, box-shadow .15s; }
+  input:focus { border-color: var(--a1); box-shadow: 0 0 0 3px rgba(123,97,255,.18); }
+  #code { font-size: 32px; letter-spacing: .32em; text-align: center; font-weight: 700; padding: 12px 0 12px .32em; font-variant-numeric: tabular-nums; }
+  .check { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--muted); margin: 2px 0 20px; cursor: pointer; }
+  .check input { width: 17px; height: 17px; accent-color: var(--a1); }
+  button.big { width: 100%; padding: 15px; border: 0; border-radius: 13px; font: inherit; font-size: 17px; font-weight: 650; cursor: pointer; transition: transform .1s, filter .15s; }
+  button.big:active { transform: scale(.985); }
+  .primary { background: linear-gradient(90deg, var(--a1), #4f8cff 55%, var(--a2)); color: #fff; }
+  .primary:hover { filter: brightness(1.08); }
+  .primary:disabled { opacity: .55; cursor: wait; }
+  .secondary { background: transparent; color: var(--text); border: 1px solid var(--line) !important; margin-top: 10px; }
+  .danger { background: var(--err); color: #fff; margin-top: 10px; }
+  .msg { min-height: 20px; margin-top: 14px; font-size: 14px; text-align: center; color: var(--err); line-height: 1.4; }
+  .msg.info { color: var(--muted); }
+  .live { text-align: center; }
+  .pulse { width: 84px; height: 84px; margin: 4px auto 18px; border-radius: 50%; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--a1), var(--a2)); animation: p 2s infinite; }
+  .pulse img { width: 44px; height: 44px; filter: brightness(10); }
+  @keyframes p { 0% { box-shadow: 0 0 0 0 rgba(123,97,255,.45); } 70% { box-shadow: 0 0 0 24px rgba(123,97,255,0); } 100% { box-shadow: 0 0 0 0 rgba(123,97,255,0); } }
+  .paused .pulse { background: #c9962b; animation: none; }
+  .wait .pulse { background: var(--line); animation: none; }
+  .timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; margin: 4px 0 4px; }
+  .live p { color: var(--muted); margin: 6px 0 22px; font-size: 15px; line-height: 1.45; }
+  .mobile { display: none; }
+  .mobile p { color: var(--muted); font-size: 15px; line-height: 1.5; margin-top: 8px; }
+  .mobile b { color: var(--text); }
+  .hidden { display: none !important; }
+  .foot { text-align: center; color: var(--muted); font-size: 12px; margin-top: 16px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="top">
+    <div class="brand"><img src="logo.svg" alt=""><span>Mittivoy<b>Screen</b></span></div>
+    <div class="langs" id="langs"><button data-l="ru">RU</button><button data-l="uz">UZ</button><button data-l="en">EN</button></div>
+  </div>
+
+  <section id="form">
+    <h1 data-t="title"></h1>
+    <p class="sub" data-t="sub"></p>
+    <label for="name" data-t="name"></label>
+    <input type="text" id="name" maxlength="40" autocomplete="name">
+    <label for="code" data-t="code"></label>
+    <input type="text" id="code" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="······" autocomplete="off">
+    <label class="check"><input type="checkbox" id="audio" checked> <span data-t="audio"></span></label>
+    <button class="big primary" id="go" data-t="go"></button>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section id="mobile" class="mobile">
+    <h1 data-t="mTitle"></h1>
+    <p id="mText"></p>
+  </section>
+
+  <section id="live" class="live hidden">
+    <div class="pulse"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+    <h1 id="liveTitle"></h1>
+    <div class="timer" id="timer">00:00</div>
+    <p id="liveText"></p>
+    <button class="big secondary" id="pause"></button>
+    <button class="big danger" id="stop" data-t="stop"></button>
+  </section>
+
+  <div class="foot" id="foot" data-t="foot"></div>
+</main>
+
+<script src="mardon-cloud.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+const T = {
+  ru: { title: 'Показать экран', sub: 'Введите код, который виден на доске.', name: 'Ваше имя', namePh: 'Например, Мардон',
+    code: 'Код с доски', audio: 'Передавать звук', go: 'Показать экран', stop: 'Остановить показ', pause: 'Пауза', resume: 'Продолжить',
+    connecting: 'Подключаюсь к доске…', connectingText: 'Обычно это занимает пару секунд.',
+    live: 'Вы на экране', paused: 'Пауза', liveText: 'Всё, что видно у вас, сейчас показывается на доске.',
+    pausedText: 'На доске застыл последний кадр — можно спокойно переключать окна.',
+    foot: 'Windows и Mac: Chrome, Edge или Safari. Ноутбук и доска — в одной сети.',
+    e_code: 'Введите 6 цифр с доски', e_pick: 'Вы не выбрали экран или окно для показа.', e_net: 'Нет интернета или сервер подключения недоступен. Попробуйте ещё раз.',
+    e_notfound: 'Доска с таким кодом не найдена. Проверьте код и что доска включена.', e_busy: 'Сейчас показывают 4 устройства. Подождите немного.',
+    e_failed: 'Не удалось соединиться с доской. Ноутбук должен быть в той же сети (Wi‑Fi), что и доска.', e_kicked: 'Показ остановлен на доске.',
+    e_browser: 'Этот браузер не умеет показывать экран. Откройте сайт в Chrome, Edge или Safari на компьютере.',
+    mTitle: 'Показ с телефона', mIos: 'На iPhone и iPad экран показывается через <b>AirPlay</b>: Пункт управления → «Повтор экрана» → выберите доску.',
+    mAndroid: 'Браузер на телефоне не умеет показывать экран. Откройте этот сайт на ноутбуке (Windows или Mac).', guest: 'Гость' },
+  uz: { title: 'Ekranni ko‘rsatish', sub: 'Doskadagi kodni kiriting.', name: 'Ismingiz', namePh: 'Masalan, Mardon',
+    code: 'Doskadagi kod', audio: 'Ovozni ham uzatish', go: 'Ekranni ko‘rsatish', stop: 'Namoyishni to‘xtatish', pause: 'Pauza', resume: 'Davom etish',
+    connecting: 'Doskaga ulanmoqda…', connectingText: 'Odatda bir-ikki soniya davom etadi.',
+    live: 'Siz ekrandasiz', paused: 'Pauza', liveText: 'Ekraningizdagi hamma narsa hozir doskada ko‘rsatilmoqda.',
+    pausedText: 'Doskada oxirgi kadr qotib qoldi — oynalarni bemalol almashtirishingiz mumkin.',
+    foot: 'Windows va Mac: Chrome, Edge yoki Safari. Noutbuk va doska bitta tarmoqda bo‘lsin.',
+    e_code: 'Doskadagi 6 ta raqamni kiriting', e_pick: 'Ko‘rsatish uchun ekran yoki oyna tanlanmadi.', e_net: 'Internet yo‘q yoki ulanish serveri ishlamayapti. Qayta urinib ko‘ring.',
+    e_notfound: 'Bunday kodli doska topilmadi. Kodni va doska yoqilganini tekshiring.', e_busy: 'Hozir 4 ta qurilma ko‘rsatmoqda. Biroz kuting.',
+    e_failed: 'Doskaga ulanib bo‘lmadi. Noutbuk doska bilan bir xil tarmoqda (Wi‑Fi) bo‘lishi kerak.', e_kicked: 'Namoyish doskada to‘xtatildi.',
+    e_browser: 'Bu brauzer ekranni ko‘rsata olmaydi. Saytni kompyuterda Chrome, Edge yoki Safari’da oching.',
+    mTitle: 'Telefondan ko‘rsatish', mIos: 'iPhone va iPad’da ekran <b>AirPlay</b> orqali ko‘rsatiladi: Boshqaruv markazi → «Ekranni takrorlash» → doskani tanlang.',
+    mAndroid: 'Telefon brauzeri ekranni ko‘rsata olmaydi. Bu saytni noutbukda (Windows yoki Mac) oching.', guest: 'Mehmon' },
+  en: { title: 'Share your screen', sub: 'Enter the code shown on the board.', name: 'Your name', namePh: 'e.g. Mardon',
+    code: 'Code on the board', audio: 'Share sound', go: 'Share screen', stop: 'Stop sharing', pause: 'Pause', resume: 'Resume',
+    connecting: 'Connecting to the board…', connectingText: 'This usually takes a couple of seconds.',
+    live: 'You are on screen', paused: 'Paused', liveText: 'Everything on your screen is now shown on the board.',
+    pausedText: 'The board is frozen on the last frame — switch windows freely.',
+    foot: 'Windows and Mac: Chrome, Edge or Safari. Laptop and board on the same network.',
+    e_code: 'Enter the 6 digits from the board', e_pick: 'No screen or window was selected.', e_net: 'No internet or the connection server is unavailable. Please try again.',
+    e_notfound: 'No board with this code was found. Check the code and that the board is on.', e_busy: '4 devices are already sharing. Please wait.',
+    e_failed: 'Could not connect to the board. The laptop must be on the same network (Wi‑Fi) as the board.', e_kicked: 'Sharing was stopped on the board.',
+    e_browser: 'This browser cannot share the screen. Open the site in Chrome, Edge or Safari on a computer.',
+    mTitle: 'Share from a phone', mIos: 'On iPhone and iPad use <b>AirPlay</b>: Control Center → Screen Mirroring → choose the board.',
+    mAndroid: 'Phone browsers cannot share the screen. Open this site on a laptop (Windows or Mac).', guest: 'Guest' },
+};
+let lang = '';
+try { lang = localStorage.getItem('ms-lang') || ''; } catch {}
+if (!T[lang]) lang = (navigator.language || 'ru').startsWith('uz') ? 'uz' : (navigator.language || '').startsWith('en') ? 'en' : 'ru';
+const t = k => T[lang][k];
+
+const params = new URLSearchParams(location.search);
+const brokers = params.get('broker') ? [params.get('broker')] : undefined;   // для проверки
+let session = null, stream = null, paused = false, state = 'idle', lastErr = null, timerH = null, startedAt = 0;
+let clientP = MardonCloud.connectAny(brokers || MardonCloud.DEFAULT_BROKERS);   // заранее, чтобы было быстрее
+clientP.catch(() => {});
+
+function applyLang() {
+  $$('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+  $('#name').placeholder = t('namePh');
+  $$('#langs button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
+  document.documentElement.lang = lang;
+  $('#mText').innerHTML = isIOS ? t('mIos') : t('mAndroid');
+  if (lastErr) setMsg(lastErr);
+  render();
+}
+$$('#langs button').forEach(b => b.onclick = () => { lang = b.dataset.l; try { localStorage.setItem('ms-lang', lang); } catch {} applyLang(); });
+
+const canShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1 && !canShare);
+const isMobile = isIOS || /Android|Mobile/i.test(navigator.userAgent);
+
+try { $('#name').value = localStorage.getItem('ms-name') || ''; } catch {}
+if (params.get('code')) $('#code').value = params.get('code').replace(/\D/g, '').slice(0, 6);
+
+if (!canShare && isMobile) {
+  $('#form').style.display = 'none'; $('#mobile').style.display = 'block'; $('#foot').style.display = 'none';
+} else if (!canShare) { $('#go').disabled = true; lastErr = 'e_browser'; }
+
+$('#code').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6); });
+$('#code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#go').click(); });
+$('#name').addEventListener('keydown', e => { if (e.key === 'Enter') $('#code').focus(); });
+
+function setMsg(k) { lastErr = k; $('#msg').textContent = k ? t(k) : ''; }
+const myName = () => $('#name').value.trim() || t('guest');
+
+function render() {
+  const live = state === 'connecting' || state === 'live';
+  $('#form').classList.toggle('hidden', live);
+  $('#live').classList.toggle('hidden', !live);
+  $('#live').classList.toggle('wait', state === 'connecting');
+  $('#live').classList.toggle('paused', paused);
+  $('#pause').classList.toggle('hidden', state !== 'live');
+  $('#timer').classList.toggle('hidden', state !== 'live');
+  $('#pause').textContent = paused ? t('resume') : t('pause');
+  $('#liveTitle').textContent = state === 'connecting' ? t('connecting') : paused ? t('paused') : t('live');
+  $('#liveText').textContent = state === 'connecting' ? t('connectingText') : paused ? t('pausedText') : t('liveText');
+}
+
+function onState(s) {
+  if (s === 'live') {
+    if (state !== 'live') { startedAt = Date.now(); clearInterval(timerH); timerH = setInterval(tickTimer, 1000); tickTimer(); }
+    state = 'live'; setMsg(null);
+  } else if (s === 'connecting') state = 'connecting';
+  else {
+    const errs = { notfound: 'e_notfound', busy: 'e_busy', failed: 'e_failed', kicked: 'e_kicked' };
+    cleanup();
+    if (errs[s]) setMsg(errs[s]);
+  }
+  render();
+}
+function tickTimer() {
+  const s = Math.floor((Date.now() - startedAt) / 1000);
+  $('#timer').textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+async function go() {
+  setMsg(null);
+  const code = $('#code').value.trim();
+  if (code.length !== 6) { setMsg('e_code'); $('#code').focus(); return; }
+  try { localStorage.setItem('ms-name', $('#name').value.trim()); } catch {}
+  $('#go').disabled = true;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: $('#audio').checked,
+      systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include',
+    });
+  } catch { $('#go').disabled = false; setMsg('e_pick'); return; }
+  const vt = stream.getVideoTracks()[0];
+  if ('contentHint' in vt) vt.contentHint = 'detail';
+  vt.onended = () => stop();
+
+  state = 'connecting'; paused = false; render();
+  let client = await clientP.catch(() => null);
+  if (!client || client.ws.readyState !== 1) {
+    clientP = MardonCloud.connectAny(brokers || MardonCloud.DEFAULT_BROKERS);
+    client = await clientP.catch(() => null);
+  }
+  if (!client) { cleanup(); setMsg('e_net'); render(); return; }
+  try {
+    session = await MardonCloud.share({ code, name: myName(), stream, client, onState });
+  } catch { cleanup(); setMsg('e_net'); render(); }
+  $('#go').disabled = false;
+}
+
+function setPaused(on) {
+  if (!session || !stream) return;
+  const vt = stream.getVideoTracks()[0];
+  const tr = session.pc.getTransceivers().find(x => x.receiver.track && x.receiver.track.kind === 'video');
+  if (tr) tr.sender.replaceTrack(on ? null : vt);
+}
+$('#pause').onclick = () => { paused = !paused; setPaused(paused); render(); };
+
+function cleanup() {
+  const s = session; session = null;
+  if (s) s.stop();
+  if (stream) { stream.getTracks().forEach(tr => tr.stop()); stream = null; }
+  clearInterval(timerH); paused = false; state = 'idle'; $('#go').disabled = !canShare;
+}
+function stop() { cleanup(); render(); }
+
+$('#go').onclick = go;
+$('#stop').onclick = stop;
+window.addEventListener('pagehide', () => { if (session) session.stop(); });
+applyLang();
+</script>
+</body>
+</html>
